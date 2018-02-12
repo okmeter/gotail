@@ -20,7 +20,8 @@ func TestTail(t *testing.T) {
 	lines := make(chan string, 10)
 	go func() {
 		for {
-			lines <- tail.ReadLine()
+			line, _ := tail.ReadLine()
+			lines <- line
 		}
 	}()
 
@@ -48,19 +49,23 @@ func TestTail(t *testing.T) {
 	f.WriteString("buz1\n")
 	assert.Equal(t, "buz1", <-lines)
 
-	// delete
-	err = os.Remove(f.Name())
-	assert.NoError(t, err)
-	time.Sleep(3 * tail.pollInterval)
-	f, err = os.Create(f.Name())
-	assert.NoError(t, err)
-	f.WriteString("foo2\n")
-	assert.Equal(t, "foo2", <-lines)
-
 	// no eol
 	f.WriteString("bar2\nbu")
 	time.Sleep(3 * tail.pollInterval)
 	f.WriteString("z2\n")
 	assert.Equal(t, "bar2", <-lines)
 	assert.Equal(t, "buz2", <-lines)
+}
+
+func TestTail_DeleteFile(t *testing.T) {
+	f, err := ioutil.TempFile("/tmp", "log")
+	assert.NoError(t, err)
+
+	tail, err := NewTail(f.Name(), 0, 100*time.Millisecond)
+	assert.NoError(t, err)
+	defer tail.Close()
+	os.Remove(f.Name())
+
+	_, err = tail.ReadLine()
+	assert.Error(t, err)
 }
