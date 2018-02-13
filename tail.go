@@ -106,12 +106,16 @@ func (tail *Tail) waitForChanges() error {
 					log.Printf("failed to seek file %s: %s", tail.fileName, err)
 					continue
 				}
-				tail.timer.Reset(defaultWaitDuration)
+				if tail.timer != nil {
+					tail.timer.Reset(defaultWaitDuration)
+				}
 				break
 			}
 			if stat.Size() > tail.stat.Size() {
 				log.Printf("file was appended %s", tail.fileName)
-				tail.timer.Reset(defaultWaitDuration)
+				if tail.timer != nil {
+					tail.timer.Reset(defaultWaitDuration)
+				}
 				break
 			}
 		}
