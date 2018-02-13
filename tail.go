@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const defaultWaitDuration = time.Second * 5
+const defaultWaitDuration = time.Second * 15
 
 type Tail struct {
 	fileName     string
@@ -74,6 +74,7 @@ func (tail *Tail) waitForChanges() error {
 	log.Printf("waiting for changes %s", tail.fileName)
 	var stat os.FileInfo
 	var err error
+
 	for {
 		select {
 		case <-tail.timer.C:
@@ -82,6 +83,7 @@ func (tail *Tail) waitForChanges() error {
 			return fmt.Errorf("failed to stat file")
 		default:
 			time.Sleep(tail.pollInterval)
+
 			stat, err = os.Stat(tail.fileName)
 			if err != nil {
 				log.Printf("failed to stat file %s: %s", tail.fileName, err)
@@ -96,8 +98,8 @@ func (tail *Tail) waitForChanges() error {
 					continue
 				}
 				tail.reader = bufio.NewReader(tail.file)
-				tail.timer.Reset(defaultWaitDuration)
-				break
+				tail.stat = stat
+				return nil
 			}
 			if stat.Size() < tail.stat.Size() {
 				log.Printf("file was truncated %s", tail.fileName)
@@ -106,23 +108,17 @@ func (tail *Tail) waitForChanges() error {
 					log.Printf("failed to seek file %s: %s", tail.fileName, err)
 					continue
 				}
-				if tail.timer != nil {
-					tail.timer.Reset(defaultWaitDuration)
-				}
-				break
+				tail.stat = stat
+				return nil
 			}
 			if stat.Size() > tail.stat.Size() {
 				log.Printf("file was appended %s", tail.fileName)
-				if tail.timer != nil {
-					tail.timer.Reset(defaultWaitDuration)
-				}
-				break
+				tail.stat = stat
+				return nil
 			}
 		}
-	}
 
-	tail.stat = stat
-	return nil
+	}
 }
 
 func (tail *Tail) Close() {
