@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const defaultWaitDuration = time.Second * 15
+const defaultWaitDuration = time.Second * 5
 
 type Tail struct {
 	fileName     string
@@ -17,7 +17,6 @@ type Tail struct {
 	file         *os.File
 	stat         os.FileInfo
 	reader       *bufio.Reader
-	timer        *time.Timer
 }
 
 func NewTail(fileName string, offset int64, pollInterval time.Duration) (tail Tail, err error) {
@@ -67,26 +66,30 @@ func (tail *Tail) ReadLine() string {
 }
 
 func (tail *Tail) waitForChanges() error {
-	if tail.timer == nil {
-		tail.timer = time.NewTimer(defaultWaitDuration)
-	}
-
 	log.Printf("waiting for changes %s", tail.fileName)
+
+	var done chan struct{}
 	var stat os.FileInfo
 	var err error
 
 	for {
 		select {
-		case <-tail.timer.C:
-			tail.file.Close()
-			tail.timer.Stop()
+		case <-done:
 			return fmt.Errorf("failed to stat file")
 		default:
 			time.Sleep(tail.pollInterval)
-
 			stat, err = os.Stat(tail.fileName)
 			if err != nil {
 				log.Printf("failed to stat file %s: %s", tail.fileName, err)
+				if done == nil {
+					done = make(chan struct{})
+					timer := time.NewTimer(defaultWaitDuration)
+
+					go func(timer *time.Timer, ch chan struct{}) {
+						<-timer.C
+						done <- struct{}{}
+					}(timer, done)
+				}
 				continue
 			}
 			if !os.SameFile(tail.stat, stat) {
