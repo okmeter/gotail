@@ -44,7 +44,7 @@ func NewTail(fileName string, offset int64, pollInterval time.Duration) (tail Ta
 	return tail, nil
 }
 
-func (tail *Tail) ReadLine() string {
+func (tail *Tail) ReadLine() (string, error) {
 	var linePart string
 	for {
 		line, err := tail.reader.ReadString('\n')
@@ -54,13 +54,13 @@ func (tail *Tail) ReadLine() string {
 				linePart = ""
 			}
 
-			return strings.TrimRight(line, "\n")
+			return strings.TrimRight(line, "\n"), nil
 		}
 
 		linePart = line
 		changesErr := tail.waitForChanges()
 		if changesErr != nil {
-			return ""
+			return "", changesErr
 		}
 	}
 }
@@ -75,6 +75,7 @@ func (tail *Tail) waitForChanges() error {
 		stat, err = os.Stat(tail.fileName)
 		if err != nil {
 			log.Printf("failed to stat file %s: %s", tail.fileName, err)
+
 			if time.Since(lastSuccessfulRead) > defaultWaitDuration {
 				tail.file.Close()
 				return err

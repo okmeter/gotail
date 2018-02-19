@@ -20,7 +20,7 @@ func TestTail(t *testing.T) {
 	lines := make(chan string, 10)
 	go func() {
 		for {
-			line := tail.ReadLine()
+			line, _ := tail.ReadLine()
 			lines <- line
 		}
 	}()
@@ -78,6 +78,6 @@ func TestTail_DeleteFile(t *testing.T) {
 	tail.ReadLine()
 
 	os.Remove(f.Name())
-	l := tail.ReadLine()
-	assert.Equal(t, "", l)
+	_, err = tail.ReadLine()
+	assert.Error(t, err)
 }
