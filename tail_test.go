@@ -49,6 +49,15 @@ func TestTail(t *testing.T) {
 	f.WriteString("buz1\n")
 	assert.Equal(t, "buz1", <-lines)
 
+	// delete
+	err = os.Remove(f.Name())
+	assert.NoError(t, err)
+	time.Sleep(3 * tail.pollInterval)
+	f, err = os.Create(f.Name())
+	assert.NoError(t, err)
+	f.WriteString("foo2\n")
+	assert.Equal(t, "foo2", <-lines)
+
 	// no eol
 	f.WriteString("bar2\nbu")
 	time.Sleep(3 * tail.pollInterval)
