@@ -2,7 +2,6 @@ package tail
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -19,10 +18,14 @@ func TestTail(t *testing.T) {
 	defer tail.Close()
 
 	lines := make(chan string, 10)
+	errors := make(chan error)
 	go func() {
 		for {
 			line, err := tail.ReadLine()
-			require.NoError(t, err)
+			if err != nil {
+				errors <- err
+				close(errors)
+			}
 			lines <- line
 		}
 	}()
@@ -66,20 +69,10 @@ func TestTail(t *testing.T) {
 	f.WriteString("z2\n")
 	assert.Equal(t, "bar2", <-lines)
 	assert.Equal(t, "buz2", <-lines)
-}
 
-func TestTail_DeleteFile(t *testing.T) {
-	f, err := ioutil.TempFile("/tmp", "log")
-	assert.NoError(t, err)
-
-	tail, err := NewTail(f.Name(), 0, time.Second)
-	assert.NoError(t, err)
-	defer tail.Close()
-
-	f.WriteString("s\n")
-	tail.ReadLine()
-
+	//delete permanently
 	os.Remove(f.Name())
-	_, err = tail.ReadLine()
+
+	err = <-errors
 	assert.Error(t, err)
 }
