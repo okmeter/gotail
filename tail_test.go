@@ -2,6 +2,7 @@ package tail
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -20,7 +21,8 @@ func TestTail(t *testing.T) {
 	lines := make(chan string, 10)
 	go func() {
 		for {
-			line, _ := tail.ReadLine()
+			line, err := tail.ReadLine()
+			require.NoError(t, err)
 			lines <- line
 		}
 	}()
