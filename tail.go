@@ -103,7 +103,6 @@ func (tail *Tail) ReadLine() (string, error) {
 	}
 }
 func (tail *Tail) waitForChanges() error {
-	log.Printf("waiting for changes %s", tail.fileName)
 	var stat os.FileInfo
 	var err error
 	lastSuccessfulRead := time.Now()
@@ -143,7 +142,6 @@ func (tail *Tail) waitForChanges() error {
 			break
 		}
 		if stat.Size() > tail.stat.Size() {
-			log.Printf("file was appended %s", tail.fileName)
 			break
 		}
 	}
