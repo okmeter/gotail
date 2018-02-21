@@ -111,9 +111,8 @@ func (tail *Tail) waitForChanges() error {
 		time.Sleep(tail.config.PollInterval)
 		stat, err = os.Stat(tail.fileName)
 		if err != nil {
-			log.Printf("failed to stat file %s: %s", tail.fileName, err)
-
 			if time.Since(lastSuccessfulRead) > tail.config.StopPollingTimeout {
+				log.Printf("failed to stat file %s: %s, stop tailing", tail.fileName, err)
 				tail.file.Close()
 				return err
 			}
