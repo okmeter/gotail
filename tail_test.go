@@ -17,7 +17,7 @@ func TestTail(t *testing.T) {
 	defer os.Remove(f.Name())
 
 	cfg := NewConfig()
-	cfg.PollInterval = time.Millisecond * 100
+	cfg.PollInterval = time.Millisecond * 500
 
 	tail, err := NewTail(f.Name(), 0, cfg)
 	assert.NoError(t, err)
@@ -62,7 +62,7 @@ func TestTail(t *testing.T) {
 	// delete
 	err = os.Remove(f.Name())
 	assert.NoError(t, err)
-	time.Sleep(3 * tail.pollInterval)
+	time.Sleep(3 * tail.config.PollInterval)
 	f, err = os.Create(f.Name())
 	assert.NoError(t, err)
 	f.WriteString("foo2\n")
@@ -70,7 +70,7 @@ func TestTail(t *testing.T) {
 
 	// no eol
 	f.WriteString("bar2\nbu")
-	time.Sleep(3 * tail.pollInterval)
+	time.Sleep(3 * tail.config.PollInterval)
 	f.WriteString("z2\n")
 	assert.Equal(t, "bar2", <-lines)
 	assert.Equal(t, "buz2", <-lines)
@@ -82,7 +82,7 @@ func TestTail(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestDefaultConfigValidates(t *testing.T) {
+func TestConfigValidates(t *testing.T) {
 	config := NewConfig()
 	err := config.Validate()
 	require.NoError(t, err)

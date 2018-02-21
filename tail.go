@@ -11,12 +11,11 @@ import (
 )
 
 type Tail struct {
-	fileName           string
-	pollInterval       time.Duration
-	stopPollingTimeOut time.Duration
-	file               *os.File
-	stat               os.FileInfo
-	reader             *bufio.Reader
+	fileName string
+	file     *os.File
+	stat     os.FileInfo
+	reader   *bufio.Reader
+	config   *Config
 }
 
 type Config struct {
@@ -50,15 +49,17 @@ func NewConfig() *Config {
 }
 
 func NewTail(fileName string, offset int64, config *Config) (tail Tail, err error) {
+	if config == nil {
+		config = NewConfig()
+	}
+
 	err = config.Validate()
 	if err != nil {
 		return tail, err
 	}
 
+	tail.config = config
 	tail.fileName = fileName
-	tail.pollInterval = config.PollInterval
-	tail.stopPollingTimeOut = config.StopPollingTimeout
-
 	tail.file, err = os.Open(fileName)
 	if err != nil {
 		return tail, fmt.Errorf("failed to open file %s: %s", fileName, err)
@@ -108,12 +109,12 @@ func (tail *Tail) waitForChanges() error {
 	lastSuccessfulRead := time.Now()
 
 	for {
-		time.Sleep(tail.pollInterval)
+		time.Sleep(tail.config.PollInterval)
 		stat, err = os.Stat(tail.fileName)
 		if err != nil {
 			log.Printf("failed to stat file %s: %s", tail.fileName, err)
 
-			if time.Since(lastSuccessfulRead) > tail.stopPollingTimeOut {
+			if time.Since(lastSuccessfulRead) > tail.config.StopPollingTimeout {
 				tail.file.Close()
 				return err
 			}
