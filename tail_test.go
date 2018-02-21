@@ -2,7 +2,10 @@ package tail
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"io/ioutil"
+
 	"os"
 	"testing"
 	"time"
@@ -13,7 +16,10 @@ func TestTail(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(f.Name())
 
-	tail, err := NewTail(f.Name(), 0, 100*time.Millisecond)
+	cfg := NewConfig()
+	cfg.PollInterval = time.Millisecond * 100
+
+	tail, err := NewTail(f.Name(), 0, cfg)
 	assert.NoError(t, err)
 	defer tail.Close()
 
@@ -24,7 +30,6 @@ func TestTail(t *testing.T) {
 			line, err := tail.ReadLine()
 			if err != nil {
 				errors <- err
-				close(errors)
 			}
 			lines <- line
 		}
@@ -75,4 +80,15 @@ func TestTail(t *testing.T) {
 
 	err = <-errors
 	assert.Error(t, err)
+}
+
+func TestDefaultConfigValidates(t *testing.T) {
+	config := NewConfig()
+	err := config.Validate()
+	require.NoError(t, err)
+
+	emptyConfig := Config{}
+	err = emptyConfig.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "PollInterval must be")
 }

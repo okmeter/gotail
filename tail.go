@@ -10,19 +10,55 @@ import (
 	"time"
 )
 
-const defaultWaitDuration = time.Second * 5
-
 type Tail struct {
-	fileName     string
-	pollInterval time.Duration
-	file         *os.File
-	stat         os.FileInfo
-	reader       *bufio.Reader
+	fileName           string
+	pollInterval       time.Duration
+	stopPollingTimeOut time.Duration
+	file               *os.File
+	stat               os.FileInfo
+	reader             *bufio.Reader
 }
 
-func NewTail(fileName string, offset int64, pollInterval time.Duration) (tail Tail, err error) {
+type Config struct {
+	// How frequently polling a file for a changes
+	PollInterval time.Duration
+	// How long to wait for a deleted file before stop polling.
+	// StopPollingTimeout should be greater than PollInterval,
+	// for cases when file was deleted and than created again
+	StopPollingTimeout time.Duration
+}
+
+func (c *Config) Validate() error {
+	switch {
+	case c.PollInterval <= 0:
+		return fmt.Errorf("PollInterval must be > 0")
+	case c.StopPollingTimeout <= 0:
+		return fmt.Errorf("StopPollingTimeout must be > 0")
+	}
+
+	return nil
+}
+
+// NewConfig return config with default values
+func NewConfig() *Config {
+	c := Config{
+		PollInterval:       time.Second * 1,
+		StopPollingTimeout: time.Second * 5,
+	}
+
+	return &c
+}
+
+func NewTail(fileName string, offset int64, config *Config) (tail Tail, err error) {
+	err = config.Validate()
+	if err != nil {
+		return tail, err
+	}
+
 	tail.fileName = fileName
-	tail.pollInterval = pollInterval
+	tail.pollInterval = config.PollInterval
+	tail.stopPollingTimeOut = config.StopPollingTimeout
+
 	tail.file, err = os.Open(fileName)
 	if err != nil {
 		return tail, fmt.Errorf("failed to open file %s: %s", fileName, err)
@@ -77,7 +113,7 @@ func (tail *Tail) waitForChanges() error {
 		if err != nil {
 			log.Printf("failed to stat file %s: %s", tail.fileName, err)
 
-			if time.Since(lastSuccessfulRead) > defaultWaitDuration {
+			if time.Since(lastSuccessfulRead) > tail.stopPollingTimeOut {
 				tail.file.Close()
 				return err
 			}
